@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>YouTube Link Generator</title>
+  <style>
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    form {
+      width: 500px;
+      margin: 0 auto;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    input {
+      width: 100%;
+      padding: 5px;
+      margin-bottom: 5px;
+    }
+
+    button {
+      width: 100%;
+      padding: 5px;
+      background-color: #007bff;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+    }
+
+    .result {
+      background-color: #e9ecef;
+      padding: 5px;
+      margin-top: 5px;
+    }
+
+    .visually-hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>YouTube Link Generator</h1>
+  <p>Enter a YouTube link below and I will add the "?sub_confirmation=1" parameter to the end of the link.</p>
+  <form>
+    <label for="link">YouTube Link:</label>
+    <input type="text" id="link">
+    <button type="submit">Generate Link</button>
+    <div class="result visually-hidden" id="result"></div>
+  </form>
+
+  <script>
+    const form = document.querySelector('form');
+    const linkInput = document.querySelector('#link');
+    const result = document.querySelector('#result');
+
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+
+      // Add the "?sub_confirmation=1" parameter to the end of the link
+      const newLink = linkInput.value + '?sub_confirmation=1';
+
+      // Display the new link to the user
+      result.innerHTML = `Your new link is: <a href="${newLink}">${newLink}</a>`;
+      result.classList.remove('visually-hidden');
+    });
+  </script>
+</body>
+</html>
