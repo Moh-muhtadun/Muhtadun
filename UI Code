@@ -1,0 +1,175 @@
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f4;
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .input-group {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        input[type="text"] {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+
+        button {
+            background: #007bff;
+            color: #fff;
+            border: 0;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        .result-item {
+            background-color: #f2f2f2;
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .copy-button {
+            background: #007bff;
+            color: #fff;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .copy-button:hover {
+            background: #0056b3;
+        }
+
+        .image-container {
+            margin-bottom: 20px;
+        }
+
+        @media screen and (max-width: 768px) {
+            body, .container, .input-group {
+                padding: 10px;
+            }
+        }
+    .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="input-group">
+            <input type="text" id="inputInput" placeholder="Enter a input (e.g., Facebook Ads)">
+            <button id="generateButton">Generate Titles</button>
+        </div>
+        <div id="imageContainer" class="image-container">
+            <img src="https://muhtadun.com/wp-content/uploads/2024/03/4015765_195-1.svg" alt="Getting Started" style="max-width: 100%;">
+        </div>
+
+        <ul id="titleList"></ul>
+
+        
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const generateButton = document.getElementById('generateButton');
+            const titleList = document.getElementById('titleList');
+            const inputInput = document.getElementById('inputInput');
+            const imageContainer = document.getElementById('imageContainer');
+
+            generateButton.addEventListener('click', function() {
+                const input = inputInput.value;
+                if (!input) {
+                    alert('Please enter a input.');
+                    return;
+                }
+
+                imageContainer.innerHTML = '<img src="https://muhtadun.com/wp-content/uploads/2023/12/Vanilla-1s-280px.gif" alt="Loading" style="max-width: 20%;">'; // Replace 'http://wordpress-test.local/wp-content/uploads/2024/03/loading.webp' with your loading GIF
+
+        // Clear existing titles and show the loading GIF
+                titleList.innerHTML = '';
+                imageContainer.classList.remove('hidden'); 
+
+                fetch('https://muhtadun.com/wp-admin/admin-ajax.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: 'action=custom_tool_run&input=' + encodeURIComponent(input)
+                })
+                .then(response => response.json())
+                .then(jsonResponse => {
+                    titleList.innerHTML = '';
+                    if (jsonResponse.success) {
+                        const titles = jsonResponse.data[0].titles;
+
+                        titles.forEach(title => {
+                            let listItem = document.createElement('li');
+                            listItem.className = 'result-item';
+                            listItem.innerHTML = `<span>${title}</span> <button class="copy-button" onclick="copyToClipboard('${title}')">Copy</button>`;
+                            titleList.appendChild(listItem);
+                        });
+                        imageContainer.classList.add('hidden'); // Hide the image container
+                    } else {
+                        console.error('Failed to fetch titles');
+            imageContainer.innerHTML = '<img src="https://muhtadun.com/wp-content/uploads/2024/03/4015765_195-1.svg" alt="Error" style="max-width: 100%;">' +
+                                               '<p>Oops! Something went wrong. Please try again.</p>';                   }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    imageContainer.innerHTML = '<img src="https://muhtadun.com/wp-content/uploads/2024/03/4015765_195-1.svg" alt="Error" style="max-width: 100%;">' +
+                                               '<p>Oops! Something went wrong. Please try again.</p>'; 
+
+                });
+            });
+
+            window.copyToClipboard = function(text) {
+            var textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.top = "0";
+            textArea.style.left = "0";
+            textArea.style.position = "fixed";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+
+            try {
+                var successful = document.execCommand('copy');
+                var msg = successful ? 'successful' : 'unsuccessful';
+                alert('Copying text was ' + msg);
+            } catch (err) {
+                alert('Unable to copy text');
+                console.error('Unable to copy', err);
+            }
+
+            document.body.removeChild(textArea);
+        };
+
+        });
+    </script>
