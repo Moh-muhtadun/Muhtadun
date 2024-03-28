@@ -1,0 +1,197 @@
+// Your Inputs
+function setApiKey() {
+    return "AIzaSyDfx86MgMQJrDHMtede5-Syp-uNSV34pJg";
+}
+
+function setPrompt($input) {
+    return "Generate 5 catchy blog titles for a blog post about " . $input;
+}
+
+
+// Define your "model" as an associative array
+function createTitlesModel($titles) {
+    return ["titles" => $titles];
+}
+
+// Helper JSON Functions
+function modelToJson($modelInstance) {
+    return json_encode($modelInstance);
+}
+
+function extractJson($textResponse) {
+    $pattern = '/\{[^{}]*\}/';
+
+    preg_match_all($pattern, $textResponse, $matches);
+    $jsonObjects = [];
+
+    foreach ($matches[0] as $jsonStr) {
+        try {
+            $jsonObj = json_decode($jsonStr, true, 512, JSON_THROW_ON_ERROR);
+            array_push($jsonObjects, $jsonObj);
+        } catch (JsonException $e) {
+            // Extend the search for nested structures
+            $extendedJsonStr = extendSearch($textResponse, $jsonStr);
+            try {
+                $jsonObj = json_decode($extendedJsonStr, true, 512, JSON_THROW_ON_ERROR);
+                array_push($jsonObjects, $jsonObj);
+            } catch (JsonException $e) {
+                // Handle cases where the extraction is not valid JSON
+                continue;
+            }
+        }
+    }
+
+    return !empty($jsonObjects) ? $jsonObjects : null;
+}
+
+function extendSearch($text, $jsonStr) {
+    // Extend the search to try to capture nested structures
+    $start = strpos($text, $jsonStr);
+    $end = $start + strlen($jsonStr);
+    $nestCount = 0;
+
+    for ($i = $start; $i < strlen($text); $i++) {
+        if ($text[$i] === '{') {
+            $nestCount++;
+        } elseif ($text[$i] === '}') {
+            $nestCount--;
+            if ($nestCount === 0) {
+                return substr($text, $start, $i - $start + 1);
+            }
+        }
+    }
+
+    return substr($text, $start, $end - $start);
+}
+
+function jsonToModel($modelClass, $jsonData) {
+    try {
+        return $modelClass($jsonData);
+    } catch (Exception $e) {
+        echo "Validation error: " . $e->getMessage();
+        return null;
+    }
+}
+
+function validateJsonWithModel($modelClass, $jsonData) {
+    $validatedData = [];
+    $validationErrors = [];
+
+    if (is_array($jsonData)) {
+        foreach ($jsonData as $item) {
+            try {
+                $modelInstance = $modelClass($item);
+                array_push($validatedData, $modelInstance);
+            } catch (Exception $e) {
+                array_push($validationErrors, ["error" => $e->getMessage(), "data" => $item]);
+            }
+        }
+    } elseif (is_assoc($jsonData)) {
+        try {
+            $modelInstance = $modelClass($jsonData);
+            array_push($validatedData, $modelInstance);
+        } catch (Exception $e) {
+            array_push($validationErrors, ["error" => $e->getMessage(), "data" => $jsonData]);
+        }
+    } else {
+        throw new ValueError("Invalid JSON data type. Expected associative array or array.");
+    }
+
+    return [$validatedData, $validationErrors];
+}
+
+function is_assoc(array $arr) {
+    if (array() === $arr) return false;
+    return array_keys($arr) !== range(0, count($arr) - 1);
+}
+
+function generate_response_with_gemini($prompt) {
+    
+    $api_key = setApiKey();
+    $api_url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=' . $api_key ;
+
+
+    // Headers for the Gemini API
+    $headers = [
+        'Content-Type' => 'application/json'
+    ];
+
+    // Body for the Gemini API
+    $body = [
+        'contents' => [
+            [
+                'parts' => [
+                    ['text' => $prompt]
+                ]
+            ]
+        ]
+    ];
+
+    // Args for the WordPress HTTP API
+    $args = [
+        'method' => 'POST',
+        'headers' => $headers,
+        'body' => json_encode($body),
+        'timeout' => 120
+    ];
+
+    // Send the request
+    $response = wp_remote_request($api_url, $args);
+    
+    // Extract the body from the response
+    $responseBody = wp_remote_retrieve_body($response);
+
+    // Decode the JSON response body
+    $decoded = json_decode($responseBody, true);
+    
+    // Extract the text
+    if (isset($decoded['candidates'][0]['content']['parts'][0]['text'])) {
+        $extractedText = $decoded['candidates'][0]['content']['parts'][0]['text'];
+        return $extractedText;
+    } else {
+        return 'Text not found in response';
+    }
+
+
+}
+
+function custom_tool_run() {
+    
+    
+         // Add CORS headers
+         header('Access-Control-Allow-Origin: *'); // Allows all origins
+         header('Access-Control-Allow-Methods: GET, POST, OPTIONS'); // Specifies the allowed methods
+         header('Access-Control-Allow-Headers: Content-Type, Authorization'); // Specifies the allowed headers 
+    
+    
+        // Variables
+        $input = $_POST['input'];
+
+        $basePrompt = setPrompt($input);
+    
+        
+        // Creating an instance of your model
+        $titlesModel = createTitlesModel(['title1', 'title2']);
+    
+        // Convert model instance to JSON
+        $jsonModel = modelToJson($titlesModel);
+    
+        
+        // Create optimized prompt
+        $optimizedPrompt = $basePrompt . ". Please provide a response in a structured JSON format that matches the following model: " . $jsonModel;
+
+    
+        // Generate content using the modified prompt
+        $gemeniResponse = generate_response_with_gemini($optimizedPrompt);
+    
+        // Extract and validate the JSON from the response
+        $jsonObjects = extractJson($gemeniResponse);
+    
+        wp_send_json_success($jsonObjects);
+
+        // Always die in functions echoing AJAX content
+        wp_die();
+}
+
+add_action('wp_ajax_custom_tool_run', 'custom_tool_run');
+add_action('wp_ajax_nopriv_custom_tool_run', 'custom_tool_run');
